@@ -3,6 +3,7 @@
   "name": "Hackescher Markt 1 km validation area",
   "crs": "EPSG:25833",
   "bbox": [391000.0, 5820000.0, 392000.0, 5821000.0],
-  "centerWgs84": [13.4022, 52.5226],
-  "notes": "Tile-aligned 1 km square centered close to Hackescher Markt. Four 500 m BWT tiles: x=782..783, z=11640..11641."
+  "bboxWgs84": [13.3932, 52.5191, 13.4083, 52.5284],
+  "centerWgs84": [13.40075, 52.52379],
+  "notes": "Tile-aligned 1 km square around Hackescher Markt. Four 500 m BWT tiles: x=782..783, z=11640..11641. WGS84 bounds are slightly padded for Overpass fallback queries."
 }
