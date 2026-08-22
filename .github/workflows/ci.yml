@@ -32,3 +32,23 @@ jobs:
         run: dotnet run --project tools/csharp_smoke/BerlinWorld.Data.Smoke.csproj -- /tmp/berlin-tiles/tile_784_11640.bwt.gz
       - name: Enforce lean repository
         run: python tools/validate_package.py
+
+  hackescher-live-smoke:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build live 1 km Hackescher Markt data
+        run: |
+          python tools/berlin_pipeline/build_area.py \
+            --area DataSources/hackescher_markt_area.json \
+            --out /tmp/hackescher/Tiles \
+            --timeout 20 \
+            --retries 2
+          cat /tmp/hackescher/Tiles/source_manifest.json
+          cat /tmp/hackescher/Tiles/manifest.json
+          du -sh /tmp/hackescher/Tiles
