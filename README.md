@@ -2,7 +2,7 @@
 
 A storage-first foundation for a **1:1-scale Berlin open world** in Unity. The project does not ship a gigantic Berlin mesh. Instead it stores compact geographic facts (building footprints/heights, road centre-lines, tree points) and creates meshes, colliders and destruction geometry in Unity.
 
-Current status: **v0.2 real-data validation**. The compact tile format, Unity runtime, procedural destruction prototype and an official Berlin WFS ingestion pipeline are implemented. The first validation area is a tile-aligned **1 km × 1 km area around Hackescher Markt**.
+Current status: **v0.2 real-data validation**. The compact tile format, Unity runtime, procedural destruction prototype and live Berlin-data ingestion pipeline are implemented. The first validation area is a tile-aligned **1 km × 1 km area around Hackescher Markt**.
 
 ## Why this approach
 
@@ -39,7 +39,7 @@ The package also exposes **Berlin World > Install Generated Tiles** for copying 
 
 ## Build the real Hackescher Markt test area
 
-The first real-world area uses official Berlin WFS data for ALKIS buildings, Detailnetz roads/paths and the Berlin tree inventory. Raw responses are processed in a temporary directory and are **not** retained in the game or repository.
+The first real-world area **prefers** official Berlin WFS data for ALKIS buildings, Detailnetz roads/paths and the Berlin tree inventory. If Berlin's GDI services are under maintenance, the default `--source auto` transparently falls back to current OpenStreetMap data through Overpass. Raw responses are processed transiently and are **not** retained in the game or repository.
 
 ```bash
 python tools/berlin_pipeline/build_area.py \
@@ -47,9 +47,11 @@ python tools/berlin_pipeline/build_area.py \
   --out GeneratedBerlin/HackescherMarkt/Tiles
 ```
 
-The selected EPSG:25833 bounds are `391000,5820000 → 392000,5821000`, exactly four 500 m BWT tiles. See `Documentation~/HACKESCHER_MARKT.md` for fidelity notes and current limitations.
+The selected EPSG:25833 bounds are `391000,5820000 → 392000,5821000`, exactly four 500 m BWT tiles. On the live CI build on **22 August 2026**, Berlin's WFS server returned its maintenance page, so the automatic OSM fallback successfully produced **814 buildings, 1,630 clipped road/path/tram parts and 713 mapped trees**. The compressed BWT geometry for all 3,157 features was **92,653 bytes** (the whole output directory including manifests occupied about 116 KiB).
 
-At this stage building footprints and placement are cadastral. Where ALKIS provides storey count but not a measured height, the importer uses a temporary storey-based height estimate. Proper LoD2 measured heights and roof surfaces are the next building-data enrichment step.
+That storage result is intentionally geometry/semantic data only; high-quality materials, unique landmarks, interiors and audio will be separate budgets. See `Documentation~/HACKESCHER_MARKT.md` for fidelity and licensing notes.
+
+When official ALKIS is available, footprints/function/storeys can be ingested directly. Proper LoD2 measured heights and roof surfaces are the next building-data enrichment step.
 
 ## Create compact tiles from your own GeoJSON
 
@@ -75,17 +77,18 @@ python tools/berlin_pipeline/cli.py pack \
 
 The sample is deliberately synthetic and is **not** a Berlin map asset.
 
-## Official data plan
+## Data plan
 
-`DataSources/berlin_sources.json` records source pages, live WFS endpoints and licensing notes. The production stack is:
+`DataSources/berlin_sources.json` records source pages, live endpoints and licensing notes. The preferred production stack is:
 
 - Berlin LoD2 + ALKIS for buildings.
 - Detailnetz for roads, paths, bridges and tunnels.
 - Berlin tree inventory for mapped trees.
+- OpenStreetMap as a live fallback/reference layer when official services are unavailable; OSM is ODbL and requires attribution/compliance.
 - TrueDOP 2026 as an offline alignment/reference source rather than a mandatory game texture.
 - The 2025 photogrammetry mesh only as an optional/reference layer after its provider-specific redistribution terms are reviewed.
 
-Most core official layers are listed by Berlin Open Data under **Datenlizenz Deutschland – Zero 2.0**; provider-specific layers must be treated separately. Every live build emits a `source_manifest.json` with the endpoints, selected WFS feature types, counts and retrieval time.
+Most core official Berlin layers are listed under **Datenlizenz Deutschland – Zero 2.0**. OpenStreetMap has separate **ODbL 1.0** terms. Every live build emits a `source_manifest.json` containing the source mode actually used, endpoint, counts, retrieval time and license information.
 
 ## Destruction prototype
 
@@ -95,7 +98,7 @@ This is only the first destruction model. High-quality structural destruction wi
 
 ## CI and storage guardrails
 
-GitHub Actions runs the binary-format tests, WFS/normalization tests, packs a synthetic sample, cross-checks the C# decoder and rejects accidentally committed raw GIS/photogrammetry files or individual repository files above 5 MiB. A separate **non-blocking live Hackescher Markt smoke build** probes Berlin's WFS services so maintenance/outages do not make normal code tests flaky.
+GitHub Actions runs binary-format, WFS/normalization and OSM-conversion tests, packs a synthetic sample, cross-checks the C# decoder and rejects accidentally committed raw GIS/photogrammetry files or individual repository files above 5 MiB. A separate live Hackescher Markt smoke build verifies that the current network-source path can produce the real 1 km area.
 
 Run locally:
 
@@ -108,7 +111,7 @@ python tools/validate_package.py
 
 1. Merge LoD2 measured heights and roof surfaces onto ALKIS building IDs/footprints.
 2. Add terrain/elevation and water surfaces.
-3. Turn Detailnetz centre-lines into proper intersections, curbs, sidewalks, markings, bridges and tunnels.
+3. Turn Detailnetz/OSM centre-lines into proper intersections, curbs, sidewalks, markings, bridges and tunnels.
 4. GPU-instance trees/props and add procedural Berlin facade/material variation.
 5. Near/far building batching so hundreds of thousands of structures do not become individual GameObjects.
 6. Structural destruction cells, debris pooling and persistent damage.
