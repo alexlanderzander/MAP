@@ -31,6 +31,18 @@
       "license": "DL-DE-Zero-2.0"
     },
     {
+      "id": "openstreetmap-overpass",
+      "purpose": "live buildings, roads/paths/tram and mapped trees when Berlin GDI is under maintenance",
+      "landingPage": "https://www.openstreetmap.org/copyright",
+      "overpass": [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter"
+      ],
+      "license": "ODbL-1.0",
+      "attribution": "© OpenStreetMap contributors",
+      "statusNote": "Small validation-area fallback only. For city-scale production use a regional extract rather than repeated public Overpass queries, and review ODbL obligations for distributed derived databases."
+    },
+    {
       "id": "truedop-2026",
       "purpose": "20 cm orthophoto alignment/reference; excluded from default shipped build",
       "landingPage": "https://daten.berlin.de/datensaetze/digitale-farbige-trueorthophotos-2026-dop20rgbi-9ff3159b",
