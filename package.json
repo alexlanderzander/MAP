@@ -1,9 +1,9 @@
 {
   "name": "com.alexlanderzander.berlin-world",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "displayName": "Berlin World",
-  "description": "Storage-first 1:1 Berlin open-world tooling for Unity with compact live map tiles, procedural facades, surfaces, rail, vegetation and destruction.",
+  "description": "1:1 Berlin open-world tooling for Unity with an exact-source photogrammetry visual layer, compact semantic gameplay tiles, streaming and destruction.",
   "unity": "6000.3",
   "author": {"name": "alexlanderzander"},
-  "keywords": ["berlin", "open-world", "geodata", "procedural", "streaming", "destruction"]
+  "keywords": ["berlin", "open-world", "geodata", "photogrammetry", "streaming", "destruction"]
 }

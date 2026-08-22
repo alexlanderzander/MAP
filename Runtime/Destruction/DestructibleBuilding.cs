@@ -1,3 +1,4 @@
+using System;
 using BerlinWorld.Data;
 using UnityEngine;
 
@@ -6,6 +7,8 @@ namespace BerlinWorld.Destruction
     [DisallowMultipleComponent]
     public sealed class DestructibleBuilding : MonoBehaviour
     {
+        public static event Action<ulong> BuildingDestroyed;
+
         [Min(1f)] public float DamageThreshold = 100f;
         [Min(0.5f)] public float ChunkWidth = 2.5f;
         [Min(0.5f)] public float ChunkHeight = 2.5f;
@@ -45,6 +48,7 @@ namespace BerlinWorld.Destruction
         private void Fracture(Vector3 worldPoint, float explosionForce, float explosionRadius)
         {
             _destroyed = true;
+            BuildingDestroyed?.Invoke(BuildingId);
             if (_renderer != null) _renderer.enabled = false;
             if (_collider != null) _collider.enabled = false;
 
@@ -70,23 +74,21 @@ namespace BerlinWorld.Destruction
                 float h = (top - bottom) / vertical;
 
                 for (int x = 0; x < horizontal && spawned < MaxChunks; x++)
+                for (int y = 0; y < vertical && spawned < MaxChunks; y++)
                 {
-                    for (int y = 0; y < vertical && spawned < MaxChunks; y++)
-                    {
-                        Vector3 local = a + direction * ((x + 0.5f) * w);
-                        local.y = bottom + (y + 0.5f) * h;
-                        Vector3 wp = transform.TransformPoint(local);
-                        var chunk = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                        chunk.name = $"Debris_{BuildingId}_{spawned}";
-                        chunk.transform.SetPositionAndRotation(wp, Quaternion.Euler(0f, yaw, 0f));
-                        chunk.transform.localScale = new Vector3(0.22f, h, w);
-                        if (material != null) chunk.GetComponent<MeshRenderer>().sharedMaterial = material;
-                        var body = chunk.AddComponent<Rigidbody>();
-                        body.mass = Mathf.Max(2f, w * h * 8f);
-                        body.AddExplosionForce(explosionForce, worldPoint, explosionRadius, 0.5f, ForceMode.Impulse);
-                        Destroy(chunk, DebrisLifetime);
-                        spawned++;
-                    }
+                    Vector3 local = a + direction * ((x + 0.5f) * w);
+                    local.y = bottom + (y + 0.5f) * h;
+                    Vector3 wp = transform.TransformPoint(local);
+                    var chunk = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    chunk.name = $"Debris_{BuildingId}_{spawned}";
+                    chunk.transform.SetPositionAndRotation(wp, Quaternion.Euler(0f, yaw, 0f));
+                    chunk.transform.localScale = new Vector3(0.22f, h, w);
+                    if (material != null) chunk.GetComponent<MeshRenderer>().sharedMaterial = material;
+                    var body = chunk.AddComponent<Rigidbody>();
+                    body.mass = Mathf.Max(2f, w * h * 8f);
+                    body.AddExplosionForce(explosionForce, worldPoint, explosionRadius, 0.5f, ForceMode.Impulse);
+                    Destroy(chunk, DebrisLifetime);
+                    spawned++;
                 }
             }
         }

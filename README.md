@@ -1,32 +1,20 @@
 # Berlin World for Unity
 
-Storage-first tooling for a **1:1-scale Berlin open world** in Unity. The project keeps the geographic source data tiny and creates the expensive 3D geometry in Unity instead of shipping a city-sized OBJ/FBX.
+A storage-conscious **1:1-scale Berlin open world** for Unity. The project now has two coordinated layers: a tiny semantic/gameplay representation and an optional exact-source visual layer built from the official textured Berlin 3D mesh.
 
-## Current milestone: Hackescher Markt v0.3
+## Current milestone: Hackescher Markt v0.4 exact visual mode
 
-The first playable validation area is a tile-aligned **1 km × 1 km around Hackescher Markt, Berlin-Mitte**. It is generated from live map data and stored as four compact 500 m tiles.
+The validation area is a tile-aligned **1 km × 1 km around Hackescher Markt, Berlin-Mitte**. `1 Unity unit = 1 metre`; coordinates are tied to `EPSG:25833` and translated around a local origin at E 391500 / N 5820500 for floating-point precision.
 
-The v0.3 runtime generates:
+The compact BWT layer still provides building IDs and footprints, roads/paths/rail, mapped trees and surface semantics, streaming, gameplay colliders and procedural destruction. When exact mode is installed, those generated meshes become invisible gameplay proxies and the visible city comes from packed source OBJ geometry and source textures instead.
 
-- building footprints at 1:1 horizontal scale;
-- source/estimated building heights and roof classes;
-- procedural roof volumes, facade windows and per-building colours when source tags exist;
-- roads, pedestrian/cycle paths and sidewalks;
-- tram/rail tracks;
-- parks, grass, paved plazas/parking and water polygons;
-- combined low-overhead tree meshes;
-- colliders and on-demand procedural building destruction;
-- player-centred tile streaming.
+## What “exact” means
 
-The map format remains intentionally compact: 2 cm coordinate quantization inside 500 m tiles + gzip. No city-wide fracture meshes, duplicate building meshes or mandatory orthophoto textures are stored.
+The exact-mode packer preserves the supplied Berlin source triangles instead of recreating buildings from footprints. It does not decimate geometry, resample UVs or recompress image files. Geometry is translated to the local Unity origin and stored as float32 positions/UVs with packed normals and 32-bit indices in gzip-compressed `BWM1` chunks. Texture bytes are copied unchanged and deduplicated by content hash.
 
-## Fidelity contract
+This makes the rendered outdoor geometry/textures match the **official source mesh you provide**. The currently documented Berlin mesh is based on the June 2025 multiperspective aerial survey, so no software can truthfully turn it into a literal live August 2026 scan. Aerial photogrammetry also cannot reveal hidden interiors or unseen surfaces. Current semantic map data is kept separately so changed roads/building footprints can be detected and updated without corrupting the visual source.
 
-**1 Unity unit = 1 metre.** Source geometry is converted to `EPSG:25833` (ETRS89 / UTM 33N), then translated to a local origin near Hackescher Markt for floating-point precision.
-
-This is a real 1:1 geographic outdoor map, not a claim that every facade/window/roof/interior is a survey-grade copy of Berlin today. Public source data does not contain every street-level detail or interior. The pipeline prefers current official Berlin WFS data and enriches it with OpenStreetMap semantics; when Berlin GDI is under maintenance it automatically falls back to current OSM. Source provenance is written to `source_manifest.json` on every build.
-
-## Build the Hackescher Markt tiles
+## Install compact gameplay tiles
 
 Requires Python 3.12+ and no third-party Python packages:
 
@@ -36,41 +24,44 @@ python tools/berlin_pipeline/build_area.py \
   --out GeneratedBerlin/HackescherMarkt/Tiles
 ```
 
-`--source auto` (default) prefers official Berlin data. `--source osm` can force the current OSM path. Raw network responses are processed transiently and are not retained.
+GitHub Actions also builds `HackescherMarkt-Unity-Tiles` without committing generated city data to Git.
 
-GitHub Actions also builds the area and uploads **HackescherMarkt-Unity-Tiles** as a workflow artifact, so generated map data does not need to live in Git history.
+## Install exact visual geometry
 
-## Use in Unity
+1. Obtain the required Hackescher Markt OBJ/texture tiles from the official Berlin 3D Downloadportal and accept its current provider terms.
+2. Install this Unity package and the compact gameplay tiles.
+3. In Unity choose **Berlin World > Hackescher Markt > Import Exact Berlin Source Mesh**.
+4. Select the downloaded OBJ directory, a portal ZIP, or a directory of ZIPs.
+5. Leave **Bind visual triangles to destructible semantic buildings** enabled and run the packer.
+6. Run **Berlin World > Hackescher Markt > Create 1:1 Scene Rig** and press Play.
 
-Target: **Unity 6000.3 / Unity 6.3 LTS**.
+The importer intentionally does **not** download from or bypass the Berlin portal. The current mesh metadata uses provider-specific terms, so redistribution/commercial-game rights for the packed source geometry/textures must be checked against the terms you accepted.
 
-In Package Manager choose **Add package from git URL**:
+See `Documentation~/EXACT_VISUAL_MODE.md` for the fidelity/storage/destruction design.
 
-```text
-https://github.com/alexlanderzander/MAP.git
-```
+## Destruction with exact visuals
 
-Then:
+If semantic BWT tiles are supplied to the packer, above-ground source triangles are spatially associated with stable building IDs. When a `DestructibleBuilding` fractures, the corresponding triangles are removed from the exact visual mesh and its dense collider, while the lightweight procedural proxy generates debris at runtime. No pre-fractured photogrammetry city is stored.
 
-1. Generate/download the `HackescherMarkt-Unity-Tiles` folder.
-2. Use **Berlin World > Install Generated Tiles** to copy the generated tile folder into the project.
-3. Run **Berlin World > Hackescher Markt > Create 1:1 Scene Rig**.
-4. Press Play.
+The pre-damage visual can therefore be source-exact while destruction remains a game simulation rather than a claim about the building's real structural failure mode.
 
-Materials are optional. If no materials are assigned, the package creates lightweight fallback materials at runtime. Custom PBR materials can be assigned in `BerlinWorldSettings` without changing the map data.
+## Storage strategy
 
-## BWT v2 storage format
+The semantic 1 km² layer remains tiny because it stores facts, not rendered geometry. Exact appearance inevitably costs more because photographic texture detail contains real information and cannot be losslessly replaced by a few kilobytes. v0.4 minimizes avoidable size by:
 
-BWT v2 stores semantic facts rather than rendered geometry: building footprint/height/levels/roof/facade metadata; road/rail centre-lines with width/surface/sidewalk/bridge/tunnel flags; tree position/height/crown; and clipped water/park/grass/pedestrian/plaza/parking polygons.
+- retaining the portal's existing compressed image bytes instead of converting them to lossless textures;
+- deduplicating identical textures by content hash;
+- gzip-compressing the source geometry stream;
+- storing only one visual mesh, not duplicate procedural render meshes;
+- using semantic geometry as gameplay proxies rather than baking another collision city;
+- generating destruction debris only when damage occurs.
 
-Coordinates are signed 16-bit deltas at 2 cm resolution from each tile centre. The C# reader remains backward-compatible with BWT v1.
+## Formats
 
-## Storage rules
+`BWT v2` stores compact semantic buildings, roads/rails, trees and surfaces with 2 cm local coordinate quantization. `BWM v1` stores exact-source visual geometry with float32 local coordinates, UVs, packed source normals, per-material index buffers and optional per-triangle semantic building ownership.
 
-Do not commit raw `.gml`, `.citygml`, `.gpkg`, `.pbf`, `.tif`, `.obj`, `.fbx`, photogrammetry or generated city output to normal Git. CI enforces a per-file size budget. Keep reusable textures/materials shared, generate facade/window/roof geometry procedurally, and only ship unique hero assets where they are visibly necessary.
+The C# readers are validated in CI against files produced by the Python packers.
 
 ## Licences / attribution
 
-The generated `source_manifest.json` is authoritative for a build. Core Berlin Open Data layers are listed under **Datenlizenz Deutschland – Zero 2.0** in `DataSources/berlin_sources.json`. OSM fallback/enrichment is **ODbL 1.0** and requires `© OpenStreetMap contributors` attribution and applicable ODbL compliance when the derived database is distributed.
-
-The Berlin 2025 photogrammetry mesh is **not** bundled because its provider-specific redistribution terms must be reviewed separately.
+`DataSources/berlin_sources.json` records the intended source and licence role of each layer. OSM-derived semantic data requires `© OpenStreetMap contributors` attribution and applicable ODbL compliance. Official Berlin Open Data layers have their listed licences. The 2025 textured 3D mesh is not vendored in this repository because its current provider-specific terms must be checked for the intended distribution.
