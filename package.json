@@ -1,8 +1,8 @@
 {
   "name": "com.alexlanderzander.berlin-world",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "displayName": "Berlin World",
-  "description": "Storage-first, 1:1 Berlin open-world tooling for Unity. Streams compact quantized vector tiles and generates geometry/destruction at runtime.",
+  "description": "Storage-first 1:1 Berlin open-world tooling for Unity with compact live map tiles, procedural facades, surfaces, rail, vegetation and destruction.",
   "unity": "6000.3",
   "author": {"name": "alexlanderzander"},
   "keywords": ["berlin", "open-world", "geodata", "procedural", "streaming", "destruction"]

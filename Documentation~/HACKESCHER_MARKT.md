@@ -1,23 +1,22 @@
-# Hackescher Markt real-data validation area
+# Hackescher Markt 1 km² 3D validation area
 
-The first real-world validation area is **Hackescher Markt / Berlin-Mitte**, not Alexanderplatz.
+## Bounds and scale
 
-## Bounds
+The area is exactly `391000,5820000 → 392000,5821000` in `EPSG:25833`, split into four 500 m BWT tiles (`x=782..783`, `z=11640..11641`). Unity's origin is set to the area centre (`391500,5820500`) and **1 Unity unit = 1 metre**.
 
-The project uses a tile-aligned 1 km square in ETRS89 / UTM 33N (`EPSG:25833`):
+## What v0.3 constructs in 3D
 
-```text
-min easting:   391000 m
-min northing: 5820000 m
-max easting:   392000 m
-max northing: 5821000 m
-```
+Buildings are extruded from real source footprints. Tagged levels, heights, roof shape/height, facade material and colours are packed when available. Unity generates wall/roof submeshes and repeating window geometry at runtime. Non-flat roofs receive lightweight generated roof volumes; these are visual approximations until current Berlin LoD2 roof planes can be ingested again.
 
-This is exactly four 500 m BWT tiles (`x=782..783`, `z=11640..11641`). Hackescher Markt is near the middle of the square.
+Road semantics include width, surface type, sidewalks, bridge/tunnel flags, level, tram and rail. The runtime creates separate road, footway, sidewalk and rail meshes. OSM area features add parks, grass, water, pedestrian/plaza/parking surfaces. Mapped trees are emitted as one combined two-material mesh per tile rather than one GameObject per tree.
 
-## Build it
+A flat tile ground currently underlies the scene. Official Berlin DGM1 remains the intended elevation source; the live GDI endpoint was returning its maintenance page during this milestone. The architecture keeps ground generation isolated so DGM elevation can replace the flat base without changing building IDs or horizontal coordinates.
 
-From the repository root:
+## Destruction
+
+Buildings remain static during ordinary streaming. When their damage threshold is reached, `DestructibleBuilding` disables the intact renderer/collider and generates local wall chunks on demand. This keeps fracture geometry off disk. The current model is gameplay destruction, not engineering-grade structural simulation.
+
+## Build
 
 ```bash
 python tools/berlin_pipeline/build_area.py \
@@ -25,61 +24,10 @@ python tools/berlin_pipeline/build_area.py \
   --out GeneratedBerlin/HackescherMarkt/Tiles
 ```
 
-The default `--source auto` first tries Berlin's official WFS services. If they are down for maintenance, it falls back to a current OpenStreetMap Overpass query for the same 1 km area. Intermediate network data is temporary; the persistent output is compact BWT1 plus manifests.
+Every build writes `manifest.json`, `source_manifest.json` and four `tile_*.bwt.gz` files. Generated data is intentionally outside normal Git. CI uploads the same folder as `HackescherMarkt-Unity-Tiles`.
 
-To force one source:
+## Fidelity limits that cannot be invented
 
-```bash
-# official Berlin data only; fail instead of falling back
-python tools/berlin_pipeline/build_area.py --source official
+The pipeline must not fabricate claims of survey accuracy where the public data lacks detail. Exact contemporary facade ornament, every window/balcony/shop sign, interiors, utility infrastructure and every roof plane are not universally present in the live sources. Procedural details are generated deterministically to make the world game-ready while geographic position/scale remain tied to source geometry.
 
-# current OSM only
-python tools/berlin_pipeline/build_area.py --source osm
-```
-
-The generated directory is ignored by Git by design. Copy/link it to `Assets/StreamingAssets/Berlin/Tiles/` in a Unity project using this package.
-
-## Preferred official layers
-
-- **ALKIS Gebäude**: cadastral footprints, building function and number of above-ground storeys. The v0.2 importer uses `aog` as a temporary height estimate (`storeys × 3.2 m + 0.8 m`) when measured height is absent.
-- **Detailnetz Berlin**: official road/path centre-lines and classifications. Long streets are clipped to the 1 km area and split at 500 m tile boundaries before BWT quantization.
-- **Baumbestand Berlin**: official mapped tree points, with real height/crown values when present.
-
-All three are consumed in EPSG:25833, so no approximate scale conversion is necessary.
-
-## Maintenance fallback
-
-During development on 22 August 2026 the live Berlin GDI endpoint returned its `Wartungsarbeiten` HTML page instead of WFS GeoJSON. Rather than blocking the milestone, `auto` now falls back to OpenStreetMap for the validation area.
-
-The fallback queries buildings, highways, tram ways and mapped trees through Overpass, converts WGS84 directly to UTM zone 33N in the pipeline, and then uses the same clipping, 500 m tiling and BWT compression path as official data. It tries the main Overpass instance and the current Private.coffee public instance.
-
-The OSM fallback is **ODbL 1.0** data and requires attribution (`© OpenStreetMap contributors`) plus compliance with the ODbL when derived database data is distributed. `source_manifest.json` records which source mode was actually used. For a whole-Berlin production build, use a regional OSM extract rather than repeatedly querying a public Overpass server.
-
-## What is real vs generated at this milestone
-
-Real/source-derived now:
-
-- building footprints and placement;
-- street/path/tram alignment;
-- mapped tree placement;
-- metric 1:1 scale.
-
-Generated/estimated now:
-
-- building facade appearance;
-- roof shape when the selected source does not provide a supported roof tag;
-- building height when the selected source has storeys but no measured height;
-- street surface width when no explicit width exists;
-- materials and street furniture.
-
-The next building pass should merge ALKIS with Berlin LoD2 roof/height data once that service is available. We intentionally do not bake a giant photogrammetry mesh into the game.
-
-## Storage policy
-
-Raw WFS/Overpass responses are not stored in the repository. `build_area.py` processes them transiently and emits a `source_manifest.json` with source URL, counts, retrieval time and license. This keeps the game data reproducible without retaining bulky source files.
-
-The most important storage rule remains: **store semantic city data, generate meshes at runtime/editor-build time, and only keep unique textures/hero assets when they add visible value.**
-
-## Availability and CI
-
-The WFS client discovers feature type names from `GetCapabilities`, has known-name fallbacks, paginates responses and retries transient failures. The Overpass client similarly retries across public instances. CI includes a live Hackescher Markt smoke build in addition to deterministic unit/cross-language tests.
+For unique landmarks or hero facades, use separately licensed/manual high-detail assets and keep the BWT footprint/ID as the placement anchor. This gives high visual quality without duplicating the whole city as textured meshes.
