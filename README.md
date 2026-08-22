@@ -2,7 +2,7 @@
 
 A storage-first foundation for a **1:1-scale Berlin open world** in Unity. The project does not ship a gigantic Berlin mesh. Instead it stores compact geographic facts (building footprints/heights, road centre-lines, tree points) and creates meshes, colliders and destruction geometry in Unity.
 
-Current status: **v0.1 foundation / prototype**. It is not yet a full present-day Berlin download. The core tile format, Python packer, Unity runtime reader, 1:1 UTM coordinate mapping, streaming prototype, procedural building/road meshes and zero-disk fracture prototype are implemented so the real Berlin ingest can be layered on top without committing gigabytes.
+Current status: **v0.2 real-data validation**. The compact tile format, Unity runtime, procedural destruction prototype and an official Berlin WFS ingestion pipeline are implemented. The first validation area is a tile-aligned **1 km × 1 km area around Hackescher Markt**.
 
 ## Why this approach
 
@@ -37,9 +37,23 @@ Assets/StreamingAssets/Berlin/Tiles/
 
 The package also exposes **Berlin World > Install Generated Tiles** for copying a generated tile folder already inside the Unity project.
 
-## Create compact tiles
+## Build the real Hackescher Markt test area
 
-The v0.1 packer consumes GeoJSON whose coordinates are already EPSG:25833 metres. It intentionally has no heavy Python dependencies.
+The first real-world area uses official Berlin WFS data for ALKIS buildings, Detailnetz roads/paths and the Berlin tree inventory. Raw responses are processed in a temporary directory and are **not** retained in the game or repository.
+
+```bash
+python tools/berlin_pipeline/build_area.py \
+  --area DataSources/hackescher_markt_area.json \
+  --out GeneratedBerlin/HackescherMarkt/Tiles
+```
+
+The selected EPSG:25833 bounds are `391000,5820000 → 392000,5821000`, exactly four 500 m BWT tiles. See `Documentation~/HACKESCHER_MARKT.md` for fidelity notes and current limitations.
+
+At this stage building footprints and placement are cadastral. Where ALKIS provides storey count but not a measured height, the importer uses a temporary storey-based height estimate. Proper LoD2 measured heights and roof surfaces are the next building-data enrichment step.
+
+## Create compact tiles from your own GeoJSON
+
+The packer also consumes GeoJSON whose coordinates are already EPSG:25833 metres. It intentionally has no heavy Python dependencies.
 
 ```bash
 python tools/berlin_pipeline/cli.py pack \
@@ -63,15 +77,15 @@ The sample is deliberately synthetic and is **not** a Berlin map asset.
 
 ## Official data plan
 
-`DataSources/berlin_sources.json` records the stable source pages and licensing notes. The intended production stack is:
+`DataSources/berlin_sources.json` records source pages, live WFS endpoints and licensing notes. The production stack is:
 
-- Berlin LoD2 / ALKIS for buildings.
+- Berlin LoD2 + ALKIS for buildings.
 - Detailnetz for roads, paths, bridges and tunnels.
 - Berlin tree inventory for mapped trees.
 - TrueDOP 2026 as an offline alignment/reference source rather than a mandatory game texture.
 - The 2025 photogrammetry mesh only as an optional/reference layer after its provider-specific redistribution terms are reviewed.
 
-Most core official layers are listed by Berlin Open Data under **Datenlizenz Deutschland – Zero 2.0**; provider-specific layers must be treated separately. Always preserve a source manifest for every generated world build.
+Most core official layers are listed by Berlin Open Data under **Datenlizenz Deutschland – Zero 2.0**; provider-specific layers must be treated separately. Every live build emits a `source_manifest.json` with the endpoints, selected WFS feature types, counts and retrieval time.
 
 ## Destruction prototype
 
@@ -81,7 +95,7 @@ This is only the first destruction model. High-quality structural destruction wi
 
 ## CI and storage guardrails
 
-GitHub Actions runs the binary-format tests, packs a synthetic sample and rejects accidentally committed raw GIS/photogrammetry files or individual repository files above 5 MiB. Large generated Berlin content belongs outside normal Git.
+GitHub Actions runs the binary-format tests, WFS/normalization tests, packs a synthetic sample, cross-checks the C# decoder and rejects accidentally committed raw GIS/photogrammetry files or individual repository files above 5 MiB. A separate **non-blocking live Hackescher Markt smoke build** probes Berlin's WFS services so maintenance/outages do not make normal code tests flaky.
 
 Run locally:
 
@@ -92,13 +106,12 @@ python tools/validate_package.py
 
 ## Next milestones
 
-1. Add a robust Berlin downloader/normalizer that can ingest WFS/ATOM/CityGML and cache source data outside the repository.
-2. Proper LoD2 roof reconstruction and polygon holes.
-3. Road clipping, intersections, curbs, sidewalks, markings, bridges and tunnels.
-4. Quantized terrain tiles and water surfaces.
-5. GPU-instanced trees/props and material/facade variation.
-6. Near/far building batching so hundreds of thousands of structures do not become individual GameObjects.
-7. Structural destruction cells, debris pooling and persistent damage.
-8. An automated 1 km² real-Berlin validation build before scaling city-wide.
+1. Merge LoD2 measured heights and roof surfaces onto ALKIS building IDs/footprints.
+2. Add terrain/elevation and water surfaces.
+3. Turn Detailnetz centre-lines into proper intersections, curbs, sidewalks, markings, bridges and tunnels.
+4. GPU-instance trees/props and add procedural Berlin facade/material variation.
+5. Near/far building batching so hundreds of thousands of structures do not become individual GameObjects.
+6. Structural destruction cells, debris pooling and persistent damage.
+7. Benchmark the Hackescher Markt 1 km² build for disk, RAM, VRAM, frame time and load time before expanding the validation envelope.
 
-See `Documentation~/ARCHITECTURE.md` and `Documentation~/BWT1.md` for the design details.
+See `Documentation~/ARCHITECTURE.md`, `Documentation~/BWT1.md` and `Documentation~/HACKESCHER_MARKT.md` for design details.
