@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","id":"demo-tree-1","properties":{"height":11.0,"crown":5.0},"geometry":{"type":"Point","coordinates":[392080,5820080]}},{"type":"Feature","id":"demo-tree-2","properties":{"height":8.0,"crown":3.5},"geometry":{"type":"Point","coordinates":[392095,5820095]}}]}

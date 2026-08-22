@@ -1,0 +1,12 @@
+{
+  "crs": "EPSG:25833",
+  "policy": "Raw source data is not vendored into this repository or game builds.",
+  "sources": [
+    {"id":"berlin-lod2","purpose":"official 3D building geometry and roof form","landingPage":"https://daten.berlin.de/datensaetze/3d-gebaudemodelle-im-level-of-detail-2-lod-2-3c7c49af","license":"DL-DE-Zero-2.0"},
+    {"id":"alkis-berlin","purpose":"cadastral building footprints and base geometry","landingPage":"https://daten.berlin.de/datensaetze/alkis-berlin-amtliches-liegenschaftskatasterinformationssystem-wfs-66e083ae","license":"DL-DE-Zero-2.0"},
+    {"id":"detailnetz-berlin","purpose":"roads paths bridges and tunnels","landingPage":"https://daten.berlin.de/datensaetze/detailnetz-berlin-wfs-4f2045ef","license":"DL-DE-Zero-2.0"},
+    {"id":"trees-berlin","purpose":"street and public green-space tree inventory","landingPage":"https://daten.berlin.de/datensaetze/baumbestand-berlin-wfs-48ad3a23","license":"DL-DE-Zero-2.0"},
+    {"id":"truedop-2026","purpose":"20 cm orthophoto alignment/reference; excluded from default shipped build","landingPage":"https://daten.berlin.de/datensaetze/digitale-farbige-trueorthophotos-2026-dop20rgbi-9ff3159b","license":"DL-DE-Zero-2.0"},
+    {"id":"berlin-3d-mesh-2025","purpose":"optional photogrammetry reference","landingPage":"https://daten.berlin.de/datensaetze/3d-meshmodell-berlin","license":"provider-specific (other-closed)","statusNote":"Do not redistribute until provider terms are reviewed for the intended game use."}
+  ]
+}

@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","id":"demo-road-1","properties":{"width":8.0,"lanes":2,"class":"residential"},"geometry":{"type":"LineString","coordinates":[[391900,5820000],[392100,5820000]]}}]}

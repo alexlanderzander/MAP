@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Python unit tests
+        run: python -m unittest discover -s tools/berlin_pipeline/tests -v
+      - name: Pack synthetic sample
+        run: |
+          python tools/berlin_pipeline/cli.py pack \
+            --buildings tools/berlin_pipeline/sample/buildings.geojson \
+            --roads tools/berlin_pipeline/sample/roads.geojson \
+            --trees tools/berlin_pipeline/sample/trees.geojson \
+            --out /tmp/berlin-tiles
+          cat /tmp/berlin-tiles/manifest.json
+      - name: Cross-language BWT1 decoder smoke test
+        run: dotnet run --project tools/csharp_smoke/BerlinWorld.Data.Smoke.csproj -- /tmp/berlin-tiles/tile_784_11640.bwt.gz
+      - name: Enforce lean repository
+        run: python tools/validate_package.py
