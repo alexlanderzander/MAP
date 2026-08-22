@@ -3,63 +3,14 @@ using System.Collections.Generic;
 using BerlinWorld.Data;
 using UnityEngine;
 using UnityEngine.Rendering;
-
 namespace BerlinWorld.Procedural
 {
-    public static class BuildingMeshBuilder
-    {
-        public static Mesh Build(BerlinBuildingData building)
-        {
-            if (building == null) throw new ArgumentNullException(nameof(building));
-            if (building.Footprint == null || building.Footprint.Length < 3)
-                throw new ArgumentException("Building footprint needs at least three vertices.", nameof(building));
-
-            var vertices = new List<Vector3>(building.Footprint.Length * 6);
-            var uv = new List<Vector2>(building.Footprint.Length * 6);
-            var triangles = new List<int>(building.Footprint.Length * 9);
-            float bottom = building.MinHeightMeters;
-            float top = Mathf.Max(bottom + 0.1f, building.HeightMeters);
-
-            for (int i = 0; i < building.Footprint.Length; i++)
-            {
-                Vector2 a2 = building.Footprint[i];
-                Vector2 b2 = building.Footprint[(i + 1) % building.Footprint.Length];
-                float edgeLength = Vector2.Distance(a2, b2);
-                int start = vertices.Count;
-                vertices.Add(new Vector3(a2.x, bottom, a2.y));
-                vertices.Add(new Vector3(b2.x, bottom, b2.y));
-                vertices.Add(new Vector3(b2.x, top, b2.y));
-                vertices.Add(new Vector3(a2.x, top, a2.y));
-                uv.Add(new Vector2(0, 0));
-                uv.Add(new Vector2(edgeLength, 0));
-                uv.Add(new Vector2(edgeLength, top - bottom));
-                uv.Add(new Vector2(0, top - bottom));
-                triangles.Add(start); triangles.Add(start + 2); triangles.Add(start + 1);
-                triangles.Add(start); triangles.Add(start + 3); triangles.Add(start + 2);
-            }
-
-            int roofStart = vertices.Count;
-            foreach (Vector2 p in building.Footprint)
-            {
-                vertices.Add(new Vector3(p.x, top, p.y));
-                uv.Add(p * 0.1f);
-            }
-            List<int> roof = PolygonTriangulator.Triangulate(building.Footprint);
-            for (int i = 0; i < roof.Count; i += 3)
-            {
-                triangles.Add(roofStart + roof[i]);
-                triangles.Add(roofStart + roof[i + 2]);
-                triangles.Add(roofStart + roof[i + 1]);
-            }
-
-            var mesh = new Mesh { name = $"BerlinBuilding_{building.Id}" };
-            if (vertices.Count > 65535) mesh.indexFormat = IndexFormat.UInt32;
-            mesh.SetVertices(vertices);
-            mesh.SetUVs(0, uv);
-            mesh.SetTriangles(triangles, 0, true);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
-        }
-    }
+ public static class BuildingMeshBuilder
+ {
+  public const int WallSubmesh=0,RoofSubmesh=1,WindowSubmesh=2;
+  public static Mesh Build(BerlinBuildingData b,bool generateWindows=true){if(b==null)throw new ArgumentNullException(nameof(b));if(b.Footprint==null||b.Footprint.Length<3)throw new ArgumentException("Building footprint needs at least three vertices.");var v=new List<Vector3>(b.Footprint.Length*12);var u=new List<Vector2>(b.Footprint.Length*12);var walls=new List<int>();var roofs=new List<int>();var windows=new List<int>();float bottom=b.MinHeightMeters,top=Mathf.Max(bottom+2.4f,b.HeightMeters),rh=b.RoofType==0?0:Mathf.Clamp(b.RoofHeightMeters>0?b.RoofHeightMeters:2.4f,.4f,Mathf.Max(.4f,top-bottom-1)),eave=b.RoofType==0?top:top-rh;float area=0;for(int i=0;i<b.Footprint.Length;i++){Vector2 p=b.Footprint[i],q=b.Footprint[(i+1)%b.Footprint.Length];area+=p.x*q.y-q.x*p.y;}float winding=area>=0?1:-1;
+   for(int i=0;i<b.Footprint.Length;i++){Vector2 a=b.Footprint[i],c=b.Footprint[(i+1)%b.Footprint.Length],edge=c-a;float len=edge.magnitude;if(len<.05f)continue;int s=v.Count;v.Add(new Vector3(a.x,bottom,a.y));v.Add(new Vector3(c.x,bottom,c.y));v.Add(new Vector3(c.x,eave,c.y));v.Add(new Vector3(a.x,eave,a.y));u.Add(new Vector2(0,0));u.Add(new Vector2(len,0));u.Add(new Vector2(len,eave-bottom));u.Add(new Vector2(0,eave-bottom));walls.Add(s);walls.Add(s+2);walls.Add(s+1);walls.Add(s);walls.Add(s+3);walls.Add(s+2);if(generateWindows&&len>=2.2f&&eave-bottom>=3)AddWindows(a,c,bottom,eave,b.Levels,winding,v,u,windows);}AddRoof(b,eave,top,v,u,roofs);var mesh=new Mesh{name=$"BerlinBuilding_{b.Id}"};if(v.Count>65535)mesh.indexFormat=IndexFormat.UInt32;mesh.SetVertices(v);mesh.SetUVs(0,u);mesh.subMeshCount=3;mesh.SetTriangles(walls,0,false);mesh.SetTriangles(roofs,1,false);mesh.SetTriangles(windows,2,true);mesh.RecalculateNormals();mesh.RecalculateBounds();return mesh;}
+  static void AddRoof(BerlinBuildingData b,float eave,float top,List<Vector3> v,List<Vector2> u,List<int> t){if(b.RoofType==0||top-eave<.05f){int s=v.Count;foreach(Vector2 p in b.Footprint){v.Add(new Vector3(p.x,top,p.y));u.Add(p*.1f);}List<int> roof=PolygonTriangulator.Triangulate(b.Footprint);for(int i=0;i<roof.Count;i+=3){t.Add(s+roof[i]);t.Add(s+roof[i+2]);t.Add(s+roof[i+1]);}return;}Vector2 center=Vector2.zero;foreach(Vector2 p in b.Footprint)center+=p;center/=b.Footprint.Length;if(b.RoofType==4){float mn=float.MaxValue,mx=float.MinValue;foreach(Vector2 p in b.Footprint){mn=Mathf.Min(mn,p.x);mx=Mathf.Max(mx,p.x);}float span=Mathf.Max(.1f,mx-mn);int s=v.Count;foreach(Vector2 p in b.Footprint){v.Add(new Vector3(p.x,eave+(p.x-mn)/span*(top-eave),p.y));u.Add(p*.1f);}List<int> roof=PolygonTriangulator.Triangulate(b.Footprint);for(int i=0;i<roof.Count;i+=3){t.Add(s+roof[i]);t.Add(s+roof[i+2]);t.Add(s+roof[i+1]);}return;}int es=v.Count;foreach(Vector2 p in b.Footprint){v.Add(new Vector3(p.x,eave,p.y));u.Add(p*.1f);}int apex=v.Count;v.Add(new Vector3(center.x,b.RoofType==3?Mathf.Lerp(eave,top,.72f):top,center.y));u.Add(center*.1f);for(int i=0;i<b.Footprint.Length;i++){t.Add(es+i);t.Add(apex);t.Add(es+(i+1)%b.Footprint.Length);}}
+  static void AddWindows(Vector2 a,Vector2 b,float bottom,float top,byte tagged,float winding,List<Vector3> v,List<Vector2> u,List<int> t){Vector2 edge=b-a;float len=edge.magnitude;Vector2 dir=edge/len,outward=new Vector2(dir.y,-dir.x)*winding;int levels=tagged>0?Mathf.Clamp(tagged,1,18):Mathf.Clamp(Mathf.RoundToInt((top-bottom)/3.15f),1,12);float fh=(top-bottom)/Mathf.Max(1,levels);int cols=Mathf.Clamp(Mathf.FloorToInt((len-1.2f)/3f),1,20);float bay=len/cols,ww=Mathf.Min(1.7f,bay*.55f),wh=Mathf.Min(1.7f,fh*.56f);Vector3 off=new(outward.x*.025f,0,outward.y*.025f);for(int f=0;f<levels;f++){float cy=bottom+fh*(f+.58f);if(cy+wh*.5f>top-.15f)continue;for(int col=0;col<cols;col++){float along=bay*(col+.5f);Vector2 c=a+dir*along,half=dir*(ww*.5f);int s=v.Count;v.Add(new Vector3(c.x-half.x,cy-wh*.5f,c.y-half.y)+off);v.Add(new Vector3(c.x+half.x,cy-wh*.5f,c.y+half.y)+off);v.Add(new Vector3(c.x+half.x,cy+wh*.5f,c.y+half.y)+off);v.Add(new Vector3(c.x-half.x,cy+wh*.5f,c.y-half.y)+off);u.Add(Vector2.zero);u.Add(Vector2.right);u.Add(Vector2.one);u.Add(Vector2.up);t.Add(s);t.Add(s+2);t.Add(s+1);t.Add(s);t.Add(s+3);t.Add(s+2);}}}
+ }
 }

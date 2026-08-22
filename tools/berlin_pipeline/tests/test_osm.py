@@ -1,53 +1,11 @@
-import sys
-import unittest
+import sys,unittest
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
-
-from osm import normalize_osm, wgs84_to_utm33
-
-BBOX = (391000.0, 5820000.0, 392000.0, 5821000.0)
-
-
+ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
+from osm import normalize_osm,wgs84_to_utm33
+BBOX=(391000.,5820000.,392000.,5821000.)
 class OsmFallbackTests(unittest.TestCase):
-    def test_wgs84_to_utm33_hackescher_markt(self):
-        e, n = wgs84_to_utm33(13.4022, 52.5226)
-        self.assertAlmostEqual(e, 391595.69, delta=0.25)
-        self.assertAlmostEqual(n, 5820365.54, delta=0.25)
-
-    def test_normalize_small_osm_payload(self):
-        payload = {"elements": [
-            {
-                "type": "way", "id": 10,
-                "tags": {"building": "apartments", "building:levels": "5", "roof:shape": "gabled"},
-                "geometry": [
-                    {"lon": 13.4000, "lat": 52.5230}, {"lon": 13.4003, "lat": 52.5230},
-                    {"lon": 13.4003, "lat": 52.5232}, {"lon": 13.4000, "lat": 52.5232},
-                    {"lon": 13.4000, "lat": 52.5230},
-                ],
-            },
-            {
-                "type": "way", "id": 11,
-                "tags": {"highway": "residential", "lanes": "2"},
-                "geometry": [
-                    {"lon": 13.3970, "lat": 52.5230}, {"lon": 13.4050, "lat": 52.5230},
-                ],
-            },
-            {
-                "type": "node", "id": 12, "lon": 13.4010, "lat": 52.5232,
-                "tags": {"natural": "tree", "height": "11.5", "species": "Tilia cordata"},
-            },
-        ]}
-        layers = normalize_osm(payload, BBOX)
-        self.assertEqual(len(layers["buildings"]["features"]), 1)
-        building = layers["buildings"]["features"][0]
-        self.assertEqual(building["properties"]["class"], "residential")
-        self.assertEqual(building["properties"]["roof_type"], "gabled")
-        self.assertAlmostEqual(building["properties"]["height"], 16.8)
-        self.assertGreaterEqual(len(layers["roads"]["features"]), 1)
-        self.assertEqual(len(layers["trees"]["features"]), 1)
-
-
-if __name__ == "__main__":
-    unittest.main()
+ def test_wgs84_to_utm33_hackescher_markt(self):
+  e,n=wgs84_to_utm33(13.4022,52.5226);self.assertAlmostEqual(e,391595.69,delta=.25);self.assertAlmostEqual(n,5820365.54,delta=.25)
+ def test_normalize_rich_osm_payload(self):
+  payload={"elements":[{"type":"way","id":10,"tags":{"building":"apartments","building:levels":"5","roof:shape":"gabled","roof:height":"2.4","building:material":"brick","building:colour":"#c9b18d","roof:colour":"#743d32"},"geometry":[{"lon":13.4000,"lat":52.5230},{"lon":13.4003,"lat":52.5230},{"lon":13.4003,"lat":52.5232},{"lon":13.4000,"lat":52.5232},{"lon":13.4000,"lat":52.5230}]},{"type":"way","id":11,"tags":{"highway":"residential","lanes":"2","surface":"asphalt","sidewalk":"both"},"geometry":[{"lon":13.3970,"lat":52.5230},{"lon":13.4050,"lat":52.5230}]},{"type":"way","id":13,"tags":{"railway":"tram"},"geometry":[{"lon":13.3990,"lat":52.5228},{"lon":13.4040,"lat":52.5228}]},{"type":"node","id":12,"lon":13.4010,"lat":52.5232,"tags":{"natural":"tree","height":"11.5","species":"Tilia cordata"}},{"type":"way","id":14,"tags":{"leisure":"park"},"geometry":[{"lon":13.4000,"lat":52.5220},{"lon":13.4004,"lat":52.5220},{"lon":13.4004,"lat":52.5223},{"lon":13.4000,"lat":52.5223},{"lon":13.4000,"lat":52.5220}]}]};layers=normalize_osm(payload,BBOX);self.assertEqual(len(layers["buildings"]["features"]),1);b=layers["buildings"]["features"][0]["properties"];self.assertEqual(b["class"],"residential");self.assertEqual(b["roof_type"],"gabled");self.assertEqual(b["facade_type"],"brick");self.assertEqual(b["levels"],5);self.assertAlmostEqual(b["roof_height"],2.4);self.assertAlmostEqual(b["height"],18.15);roads=layers["roads"]["features"];self.assertGreaterEqual(len(roads),2);res=next(r for r in roads if r["properties"]["class"]=="residential");self.assertEqual(res["properties"]["surface"],"asphalt");self.assertEqual(res["properties"]["sidewalk_mask"],3);tram=next(r for r in roads if r["properties"]["class"]=="tram");self.assertNotEqual(tram["properties"]["flags"]&4,0);self.assertEqual(len(layers["trees"]["features"]),1);self.assertGreaterEqual(len(layers["surfaces"]["features"]),1);self.assertEqual(layers["surfaces"]["features"][0]["properties"]["kind"],"park")
+if __name__=='__main__':unittest.main()

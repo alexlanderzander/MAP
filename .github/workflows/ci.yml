@@ -28,7 +28,13 @@ jobs:
             --trees tools/berlin_pipeline/sample/trees.geojson \
             --out /tmp/berlin-tiles
           cat /tmp/berlin-tiles/manifest.json
-      - name: Cross-language BWT1 decoder smoke test
+          python - <<'PY'
+          import json
+          m=json.load(open('/tmp/berlin-tiles/manifest.json'))
+          assert m['version'] == 2
+          assert m['quantizationCm'] == 2
+          PY
+      - name: Cross-language BWT decoder smoke test
         run: dotnet run --project tools/csharp_smoke/BerlinWorld.Data.Smoke.csproj -- /tmp/berlin-tiles/tile_784_11640.bwt.gz
       - name: Enforce lean repository
         run: python tools/validate_package.py
@@ -36,7 +42,6 @@ jobs:
   hackescher-live-smoke:
     runs-on: ubuntu-latest
     continue-on-error: true
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -47,8 +52,25 @@ jobs:
           python tools/berlin_pipeline/build_area.py \
             --area DataSources/hackescher_markt_area.json \
             --out /tmp/hackescher/Tiles \
-            --timeout 20 \
+            --timeout 25 \
             --retries 2
           cat /tmp/hackescher/Tiles/source_manifest.json
           cat /tmp/hackescher/Tiles/manifest.json
+          python - <<'PY'
+          import json
+          m=json.load(open('/tmp/hackescher/Tiles/manifest.json'))
+          assert m['version'] == 2
+          assert len(m['tiles']) == 4
+          assert sum(t['buildings'] for t in m['tiles']) > 300
+          assert m['totalBytes'] < 2_000_000
+          print('Hackescher Markt compact 3D validation OK')
+          PY
           du -sh /tmp/hackescher/Tiles
+      - name: Upload ready-to-import Hackescher Markt tiles
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HackescherMarkt-Unity-Tiles
+          path: /tmp/hackescher/Tiles
+          if-no-files-found: error
+          compression-level: 9

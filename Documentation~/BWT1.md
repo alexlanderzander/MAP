@@ -1,27 +1,40 @@
-# BWT1 compact tile format
+# BWT compact Berlin tile format
 
-BWT1 deliberately stores a **world description, not final meshes**. That is the main disk-size strategy.
+`BWT1` is the file magic. The current wire version is **2** and the C# reader remains compatible with version 1. All numeric fields are little-endian. Local X/Z positions are signed 16-bit integers at the header quantization (currently **2 cm**) relative to the tile centre.
 
-Default tiles are 500 x 500 m in ETRS89 / UTM zone 33N (EPSG:25833). Positions are signed 16-bit offsets from the tile centre at 2 cm resolution, and each tile is gzip-compressed.
+## Header
 
-Stored data:
-- Buildings: stable 64-bit ID, height, minimum height, class, roof type and footprint polygon.
-- Roads: stable 64-bit ID, class, lanes, width and centre-line polyline.
-- Trees: stable 64-bit ID, local position, height, crown diameter and compact species code.
+```text
+4s magic=BWT1
+u16 version=2
+u16 quantization_cm=2
+u16 tile_size_m
+u16 surface_count   # reserved/zero in v1
+s32 tile_x
+s32 tile_z
+f64 center_easting
+f64 center_northing
+u32 building_count
+u32 road_count
+u32 tree_count
+```
 
-Not stored:
-- per-building triangle meshes,
-- duplicate collision meshes,
-- city-wide fracture meshes,
-- unique facade textures,
-- duplicate prop geometry.
+## Building v2
 
-Unity regenerates geometry from the compact features. This is usually far smaller than compressing an already-expanded city mesh.
+`u64 id, u16 height, u16 min_height, u8 roof_type, u8 class, u16 point_count, u8 levels, u8 facade_type, u16 roof_height, u16 facade_rgb565, u16 roof_rgb565`, followed by signed 16-bit local X/Z point pairs.
 
-## v0.1 limitations
+## Road v2
 
-- Polygon holes are not represented yet.
-- The packer keeps only the largest outer ring of a MultiPolygon.
-- Features must fit the signed local-coordinate range; production ingestion will clip/split long roads at tile boundaries.
-- Terrain is planned as a separate quantized height-tile format so its resolution can be tuned independently.
-- Roof type metadata is stored, but v0.1 rendering still uses flat tops. Proper LoD2 generalized roof reconstruction is a next milestone.
+`u64 id, u8 class, u8 lanes, u16 width, u16 point_count, u8 surface, u8 sidewalk_mask, u8 flags, s8 layer`, followed by local X/Z pairs. Flags encode bridge/tunnel/tram/rail/steps.
+
+## Tree
+
+Tree layout is unchanged from v1: ID, local X/Z, height, crown diameter and compact species code.
+
+## Surface v2
+
+`u64 id, u8 kind, u8 material, u16 point_count`, followed by local X/Z pairs. Surface polygons are clipped to tile boundaries before packing.
+
+## Compression
+
+Each tile is gzip-compressed with deterministic `mtime=0`. Render meshes are intentionally not part of the format; facade windows, roofs, sidewalks, rails and trees are expanded in Unity at runtime/editor time rather than duplicated on disk.
