@@ -1,13 +1,23 @@
 {
   "crs": "EPSG:25833",
-  "policy": "Raw source data is not vendored into this repository or game builds.",
+  "policy": "Raw source data is not vendored into this repository or normal game-source Git history.",
   "sources": [
     {
+      "id": "berlin-3d-mesh-2025",
+      "purpose": "highest-fidelity exact outdoor visual layer: source geometry, UVs and aerial textures",
+      "landingPage": "https://daten.berlin.de/datensaetze/3d-meshmodell-berlin",
+      "surveyDate": "2025-06-13",
+      "format": "OBJ + textures",
+      "license": "provider-specific (other-closed in current Berlin Open Data metadata)",
+      "statusNote": "The package never downloads or redistributes this dataset. The Unity importer only consumes files the user obtained from the official portal after accepting its current provider terms. Verify redistribution/commercial-game rights before shipping packed output."
+    },
+    {
       "id": "berlin-lod2",
-      "purpose": "official 3D building geometry and roof form",
+      "purpose": "official building geometry/roof fallback and validation",
       "landingPage": "https://daten.berlin.de/datensaetze/3d-gebaudemodelle-im-level-of-detail-2-lod-2-3c7c49af",
+      "atom": "https://gdi.berlin.de/data/a_lod2/atom/0.atom",
       "license": "DL-DE-Zero-2.0",
-      "statusNote": "Use as the next building-height/roof enrichment layer when the download service is reachable."
+      "statusNote": "Cadastral LoD2 is useful when exact photogrammetry is unavailable; roof forms are generalized and therefore are not the exact visual target."
     },
     {
       "id": "alkis-berlin-gebaeude",
@@ -32,7 +42,7 @@
     },
     {
       "id": "openstreetmap-overpass",
-      "purpose": "live buildings, roads/paths/tram and mapped trees when Berlin GDI is under maintenance",
+      "purpose": "current semantic buildings, roads/paths/tram, surfaces and mapped trees when Berlin GDI is unavailable",
       "landingPage": "https://www.openstreetmap.org/copyright",
       "overpass": [
         "https://overpass-api.de/api/interpreter",
@@ -40,20 +50,20 @@
       ],
       "license": "ODbL-1.0",
       "attribution": "© OpenStreetMap contributors",
-      "statusNote": "Small validation-area fallback only. For city-scale production use a regional extract rather than repeated public Overpass queries, and review ODbL obligations for distributed derived databases."
+      "statusNote": "Small validation-area fallback only. For city-scale production use a regional extract and review ODbL obligations for distributed derived databases."
     },
     {
-      "id": "truedop-2026",
-      "purpose": "20 cm orthophoto alignment/reference; excluded from default shipped build",
-      "landingPage": "https://daten.berlin.de/datensaetze/digitale-farbige-trueorthophotos-2026-dop20rgbi-9ff3159b",
+      "id": "truedop-2025-summer",
+      "purpose": "20 cm orthophoto reference for alignment and change review",
+      "landingPage": "https://daten.berlin.de/datensaetze/digitale-farbige-trueorthophotos-2025-dop20rgbi-sommerbefliegung",
+      "atom": "https://gdi.berlin.de/data/truedop_2025_sommer/atom/0.atom",
       "license": "DL-DE-Zero-2.0"
     },
     {
-      "id": "berlin-3d-mesh-2025",
-      "purpose": "optional photogrammetry reference",
-      "landingPage": "https://daten.berlin.de/datensaetze/3d-meshmodell-berlin",
-      "license": "provider-specific (other-closed)",
-      "statusNote": "Do not redistribute until provider terms are reviewed for the intended game use."
+      "id": "dgm1-berlin",
+      "purpose": "1 m terrain fallback/validation where source mesh is not used",
+      "atom": "https://gdi.berlin.de/data/dgm1/atom/0.atom",
+      "license": "DL-DE-Zero-2.0"
     }
   ]
 }

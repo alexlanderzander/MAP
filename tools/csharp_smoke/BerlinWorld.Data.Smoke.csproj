@@ -11,5 +11,6 @@
     <Compile Include="UnityEngineStubs.cs" />
     <Compile Include="../../Runtime/Data/BerlinTileData.cs" Link="BerlinTileData.cs" />
     <Compile Include="../../Runtime/Data/BerlinTileReader.cs" Link="BerlinTileReader.cs" />
+    <Compile Include="../../Runtime/Photogrammetry/BerlinPhotogrammetryData.cs" Link="BerlinPhotogrammetryData.cs" />
   </ItemGroup>
 </Project>

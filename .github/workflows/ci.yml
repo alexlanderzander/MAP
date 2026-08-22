@@ -18,24 +18,49 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Python unit tests
+      - name: Python semantic tile tests
         run: python -m unittest discover -s tools/berlin_pipeline/tests -v
-      - name: Pack synthetic sample
+      - name: Python exact visual tests
+        run: python -m unittest discover -s tools/photogrammetry/tests -v
+      - name: Pack synthetic semantic sample
         run: |
           python tools/berlin_pipeline/cli.py pack \
             --buildings tools/berlin_pipeline/sample/buildings.geojson \
             --roads tools/berlin_pipeline/sample/roads.geojson \
             --trees tools/berlin_pipeline/sample/trees.geojson \
             --out /tmp/berlin-tiles
-          cat /tmp/berlin-tiles/manifest.json
           python - <<'PY'
           import json
           m=json.load(open('/tmp/berlin-tiles/manifest.json'))
           assert m['version'] == 2
           assert m['quantizationCm'] == 2
           PY
-      - name: Cross-language BWT decoder smoke test
-        run: dotnet run --project tools/csharp_smoke/BerlinWorld.Data.Smoke.csproj -- /tmp/berlin-tiles/tile_784_11640.bwt.gz
+      - name: Pack synthetic exact visual sample
+        run: |
+          mkdir -p /tmp/berlin-photo/source
+          cat > /tmp/berlin-photo/source/sample.obj <<'OBJ'
+          v 391500 5820500 35
+          v 391501 5820500 35
+          v 391500 5820501 35
+          vt 0 0
+          vt 1 0
+          vt 0 1
+          f 1/1 2/2 3/3
+          OBJ
+          python tools/photogrammetry/prepare_photogrammetry.py \
+            --input /tmp/berlin-photo/source \
+            --out /tmp/berlin-photo/out \
+            --base-elevation 35 \
+            --clean
+          python - <<'PY'
+          import json
+          m=json.load(open('/tmp/berlin-photo/out/photogrammetry_manifest.json'))
+          assert m['format'] == 'BWM1'
+          assert m['version'] == 1
+          assert m['chunks'][0]['triangles'] == 1
+          PY
+      - name: Cross-language BWT + BWM decoder smoke test
+        run: dotnet run --project tools/csharp_smoke/BerlinWorld.Data.Smoke.csproj -- /tmp/berlin-tiles/tile_784_11640.bwt.gz /tmp/berlin-photo/out/chunk_0000.bwm.gz
       - name: Enforce lean repository
         run: python tools/validate_package.py
 
@@ -47,7 +72,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build live 1 km Hackescher Markt data
+      - name: Build live 1 km Hackescher Markt semantic data
         run: |
           python tools/berlin_pipeline/build_area.py \
             --area DataSources/hackescher_markt_area.json \
@@ -63,10 +88,10 @@ jobs:
           assert len(m['tiles']) == 4
           assert sum(t['buildings'] for t in m['tiles']) > 300
           assert m['totalBytes'] < 2_000_000
-          print('Hackescher Markt compact 3D validation OK')
+          print('Hackescher Markt compact semantic validation OK')
           PY
           du -sh /tmp/hackescher/Tiles
-      - name: Upload ready-to-import Hackescher Markt tiles
+      - name: Upload ready-to-import Hackescher Markt semantic tiles
         if: success()
         uses: actions/upload-artifact@v4
         with:
